@@ -1,36 +1,44 @@
 services:
+  # ===========================================================================
+  # POSTIZ: MAIN APPLICATION CONTENT CORE
+  # ===========================================================================
   postiz:
-    image: ghcr.io/gitroomhq/postiz-app:latest
+    image: ghcr.io/gitroomhq/postiz-app:v2.21.7
     container_name: postiz
     restart: always
     environment:
-      # === Required Settings
-      MAIN_URL: 'http://localhost:4007'
-      FRONTEND_URL: 'http://localhost:4007'
-      NEXT_PUBLIC_BACKEND_URL: 'http://localhost:4007/api'
-      JWT_SECRET: 'random string that is unique to every install - just type random characters here!'
-      DATABASE_URL: 'postgresql://postiz-user:postiz-password@postiz-postgres:5432/postiz-db-local'
-      REDIS_URL: 'redis://postiz-redis:6379'
-      BACKEND_INTERNAL_URL: 'http://localhost:3000'
-      TEMPORAL_ADDRESS: "temporal:7233"
+      NODE_ENV: 'production'
+
+      # === URLs & Routing (Point to your domain, Caddy handles HTTPS)
+      PORT: '3001'
+      MAIN_URL: 'https://social.evo-omni-engine.duckdns.org'
+      FRONTEND_URL: 'https://social.evo-omni-engine.duckdns.org'
+      NEXT_PUBLIC_BACKEND_URL: 'https://social.evo-omni-engine.duckdns.org/api'
+      BACKEND_INTERNAL_URL: 'http://postiz:3001'
+
+      # === Security
+      JWT_SECRET: 'JdiI0LOEM981nyHVUfPl_SECRET_KEY_FOR_POSTIZ'
+      NEXTAUTH_SECRET: 'JdiI0LOEM981nyHVUfPl_SECRET_KEY_FOR_POSTIZ'
+
+      # === Infrastructure Connections (Postiz uses global DB and Redis)
+      DATABASE_URL: 'postgresql://postiz_admin:JdiI0LOEM981nyHVUfPl@global_postgres:5432/postiz_db'
+      REDIS_URL: 'redis://global_redis:6379'
+      TEMPORAL_ADDRESS: 'temporal:7233'
+      NEXTAUTH_URL: 'https://social.evo-omni-engine.duckdns.org'
+      #NEXTAUTH_COOKIE_NAME: 'auth'
+      #NEXTAUTH_COOKIE_DOMAIN: 'social.evo-omni-engine.duckdns.org'
+      COOKIE_DOMAIN: ''
+
+      # === App Flags
       IS_GENERAL: 'true'
-      DISABLE_REGISTRATION: 'false'
+      DISABLE_REGISTRATION: 'false' # Protects instance from external registrations
 
       # === Storage Settings
       STORAGE_PROVIDER: 'local'
       UPLOAD_DIRECTORY: '/uploads'
       NEXT_PUBLIC_UPLOAD_DIRECTORY: '/uploads'
 
-      # === Cloudflare (R2) Settings
-      # STORAGE_PROVIDER: 'cloudflare'
-      # CLOUDFLARE_ACCOUNT_ID: 'your-account-id'
-      # CLOUDFLARE_ACCESS_KEY: 'your-access-key'
-      # CLOUDFLARE_SECRET_ACCESS_KEY: 'your-secret-access-key'
-      # CLOUDFLARE_BUCKETNAME: 'your-bucket-name'
-      # CLOUDFLARE_BUCKET_URL: 'https://your-bucket-url.r2.cloudflarestorage.com/'
-      # CLOUDFLARE_REGION: 'auto'
-
-      # === Social Media API Settings
+      # === Social Media API Settings (Blank, handled via frontend OAuth)
       X_URL: ''
       X_API_KEY: ''
       X_API_SECRET: ''
@@ -64,28 +72,11 @@ services:
       MASTODON_CLIENT_ID: ''
       MASTODON_CLIENT_SECRET: ''
 
-      # === OAuth & Authentik Settings
-      # NEXT_PUBLIC_POSTIZ_OAUTH_DISPLAY_NAME: 'Authentik'
-      # NEXT_PUBLIC_POSTIZ_OAUTH_LOGO_URL: 'https://raw.githubusercontent.com/walkxcode/dashboard-icons/master/png/authentik.png'
-      # POSTIZ_GENERIC_OAUTH: 'false'
-      # POSTIZ_OAUTH_URL: 'https://auth.example.com'
-      # POSTIZ_OAUTH_AUTH_URL: 'https://auth.example.com/application/o/authorize'
-      # POSTIZ_OAUTH_TOKEN_URL: 'https://auth.example.com/application/o/token'
-      # POSTIZ_OAUTH_USERINFO_URL: 'https://authentik.example.com/application/o/userinfo'
-      # POSTIZ_OAUTH_CLIENT_ID: ''
-      # POSTIZ_OAUTH_CLIENT_SECRET: ''
-      # POSTIZ_OAUTH_SCOPE: "openid profile email"  # Optional: uncomment to override default scope
-
-      # === Sentry
-
-      # NEXT_PUBLIC_SENTRY_DSN: 'http://spotlight:8969/stream'
-      # SENTRY_SPOTLIGHT: '1'
-
       # === Misc Settings
       OPENAI_API_KEY: ''
       NEXT_PUBLIC_DISCORD_SUPPORT: ''
       NEXT_PUBLIC_POLOTNO: ''
-      API_LIMIT: 30
+      API_LIMIT: 100 # High limits for high-volume automated pipeline bursts
 
       # === Payment / Stripe Settings
       FEE_AMOUNT: 0.05
@@ -95,81 +86,23 @@ services:
       STRIPE_SIGNING_KEY_CONNECT: ''
 
       # === Developer Settings
-      NX_ADD_PLUGINS: false
-
-      # === Short Link Service Settings (Optional - leave blank if unused)
-      # DUB_TOKEN: ""
-      # DUB_API_ENDPOINT: "https://api.dub.co"
-      # DUB_SHORT_LINK_DOMAIN: "dub.sh"
-      # SHORT_IO_SECRET_KEY: ""
-      # KUTT_API_KEY: ""
-      # KUTT_API_ENDPOINT: "https://kutt.it/api/v2"
-      # KUTT_SHORT_LINK_DOMAIN: "kutt.it"
-      # LINK_DRIP_API_KEY: ""
-      # LINK_DRIP_API_ENDPOINT: "https://api.linkdrip.com/v1/"
-      # LINK_DRIP_SHORT_LINK_DOMAIN: "dripl.ink"
-
+      NX_ADD_PLUGINS: 'false'
     volumes:
       - postiz-config:/config/
       - postiz-uploads:/uploads/
-    ports:
-      - "4007:5000"
-    networks:
-      - postiz-network
-      - temporal-network
     depends_on:
-      postiz-postgres:
+      temporal:
         condition: service_healthy
-      postiz-redis:
-        condition: service_healthy
-
-  postiz-postgres:
-    image: postgres:17-alpine
-    container_name: postiz-postgres
-    restart: always
-    environment:
-      POSTGRES_PASSWORD: postiz-password
-      POSTGRES_USER: postiz-user
-      POSTGRES_DB: postiz-db-local
-    volumes:
-      - postgres-volume:/var/lib/postgresql/data
     networks:
-      - postiz-network
-    healthcheck:
-      test: pg_isready -U postiz-user -d postiz-db-local
-      interval: 10s
-      timeout: 3s
-      retries: 3
-  postiz-redis:
-    image: redis:7.2
-    container_name: postiz-redis
-    restart: always
-    healthcheck:
-      test: redis-cli ping
-      interval: 10s
-      timeout: 3s
-      retries: 3
-    volumes:
-      - postiz-redis-data:/data
-    networks:
-      - postiz-network
+      - maite_supreme
 
-  # For Application Monitoring / Debugging
-  spotlight:
-    pull_policy: always
-    container_name: spotlight
-    ports:
-      - 8969:8969/tcp
-    image: ghcr.io/getsentry/spotlight:latest
-    networks:
-      - postiz-network
-
-  # -----------------------
-  # Temporal Stack
-  # -----------------------
+  # ===========================================================================
+  # TEMPORAL STACK: ISOLATED WORKFLOW ENGINE
+  # ===========================================================================
   temporal-elasticsearch:
     container_name: temporal-elasticsearch
     image: elasticsearch:7.17.27
+    restart: always
     environment:
       - cluster.routing.allocation.disk.threshold_enabled=true
       - cluster.routing.allocation.disk.watermark.low=512mb
@@ -179,30 +112,27 @@ services:
       - ES_JAVA_OPTS=-Xms256m -Xmx256m
       - xpack.security.enabled=false
     networks:
-      - temporal-network
-    expose:
-      - 9200
+      - maite_supreme
     volumes:
-      - /var/lib/elasticsearch/data
+      - temporal_es_data:/usr/share/elasticsearch/data
 
+  # Temporal's dedicated database (Keeps noisy workflow data out of global_postgres)
   temporal-postgresql:
     container_name: temporal-postgresql
     image: postgres:16
+    restart: always
     environment:
       POSTGRES_PASSWORD: temporal
       POSTGRES_USER: temporal
     networks:
-      - temporal-network
-    expose:
-      - 5432
+      - maite_supreme
     volumes:
-      - /var/lib/postgresql/data
+      - temporal_pg_data:/var/lib/postgresql/data
 
   temporal:
     container_name: temporal
-    ports:
-      - '7233:7233'
     image: temporalio/auto-setup:1.28.1
+    restart: always
     depends_on:
       - temporal-postgresql
       - temporal-elasticsearch
@@ -212,26 +142,29 @@ services:
       - POSTGRES_USER=temporal
       - POSTGRES_PWD=temporal
       - POSTGRES_SEEDS=temporal-postgresql
-      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
       - ENABLE_ES=true
       - ES_SEEDS=temporal-elasticsearch
       - ES_VERSION=v7
       - TEMPORAL_NAMESPACE=default
     networks:
-      - temporal-network
-    volumes:
-      - ./dynamicconfig:/etc/temporal/config/dynamicconfig
-    labels:
-      kompose.volume.type: configMap
+      - maite_supreme
+    healthcheck:
+      test: ["CMD-SHELL", "tctl --ns default --address temporal:7233 namespace describe || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
 
   temporal-admin-tools:
     container_name: temporal-admin-tools
     image: temporalio/admin-tools:1.28.1-tctl-1.18.4-cli-1.4.1
+    restart: always
     environment:
       - TEMPORAL_ADDRESS=temporal:7233
       - TEMPORAL_CLI_ADDRESS=temporal:7233
     networks:
-      - temporal-network
+      - maite_supreme
     stdin_open: true
     depends_on:
       - temporal
@@ -240,30 +173,22 @@ services:
   temporal-ui:
     container_name: temporal-ui
     image: temporalio/ui:2.34.0
+    restart: always
     environment:
       - TEMPORAL_ADDRESS=temporal:7233
       - TEMPORAL_CORS_ORIGINS=http://127.0.0.1:3000
     networks:
-      - temporal-network
-    ports:
-      - '8080:8080'
+      - maite_supreme
 
+# ===========================================================================
+# VOLUMES & NETWORKS MANAGEMENT
+# ===========================================================================
 volumes:
-  postgres-volume:
-    external: false
-
-  postiz-redis-data:
-    external: false
-
   postiz-config:
-    external: false
-
   postiz-uploads:
-    external: false
+  temporal_es_data:
+  temporal_pg_data:
 
 networks:
-  postiz-network:
-    external: false
-  temporal-network:
-    driver: bridge
-    name: temporal-network
+  maite_supreme:
+    external: true
