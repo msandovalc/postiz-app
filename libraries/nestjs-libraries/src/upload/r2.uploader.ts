@@ -107,22 +107,21 @@ export async function simpleUpload(
 }
 
 export async function createMultipartUpload(req: Request, res: Response) {
-// Support both Uppy's default payload { filename } and custom payload { file: { name } }
+  // Support both Uppy's default payload { filename } and custom payload { file: { name } }
   const incomingFilename = req.body.filename || req.body.file?.name || '';
   const fileHash = req.body.fileHash || '';
 
   const safeExt = normalizeExtension(incomingFilename);
 
   if (!safeExt) {
+    console.error('Validation Error: Missing or unsupported file type for:', incomingFilename);
     return res.status(400).json({ message: 'Unsupported file type or missing filename.' });
   }
 
   const safeContentType = ALLOWED_EXT_TO_MIME[safeExt];
   const randomFilename = generateRandomString() + safeExt;
 
-  console.log('DEBUG safeExt:', safeExt);
-  console.log('DEBUG randomFilename:', randomFilename);
-  console.log('DEBUG file recibido:', file);
+  console.log(`[Multipart Create] Ext: ${safeExt} | Key: ${randomFilename}`);
 
   try {
     const params = {
@@ -134,15 +133,25 @@ export async function createMultipartUpload(req: Request, res: Response) {
       },
     };
 
-    const command = new CreateMultipartUploadCommand({ ...params });
+    const command = new CreateMultipartUploadCommand(params);
     const response = await R2.send(command);
+
     return res.status(200).json({
       uploadId: response.UploadId,
       key: response.Key,
     });
   } catch (err) {
-    console.log('Error', err);
-    return res.status(500).json({ source: { status: 500 } });
+    // Detailed error logging to expose the hidden 500 issue with Cloudflare R2
+    console.error('🔥 [CRITICAL] Failed at createMultipartUpload:');
+    console.error('Error message:', err instanceof Error ? err.message : err);
+    console.error('Stack trace:', err instanceof Error ? err.stack : 'No stack trace available');
+    console.error('Credentials and Environment Variables Check:');
+    console.error(`Bucket: ${CLOUDFLARE_BUCKETNAME}`);
+    console.error(`Endpoint: https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`);
+    console.error('AccessKey present:', !!CLOUDFLARE_ACCESS_KEY);
+    console.error('SecretKey present:', !!CLOUDFLARE_SECRET_ACCESS_KEY);
+
+    return res.status(500).json({ error: 'Failed to initialize multipart upload.' });
   }
 }
 
@@ -281,7 +290,7 @@ export async function signPart(req: Request, res: Response) {
       message: 'Missing key, uploadId, or partNumber. Initialize upload first.'
     });
   }
-  
+
   console.log('DEBUG signPart - key:', key);
   console.log('DEBUG signPart - uploadId:', uploadId);
   console.log('DEBUG signPart - partNumber:', partNumber);
