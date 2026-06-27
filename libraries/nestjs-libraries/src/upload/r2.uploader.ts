@@ -107,11 +107,16 @@ export async function simpleUpload(
 }
 
 export async function createMultipartUpload(req: Request, res: Response) {
-  const { file, fileHash } = req.body;
-  const safeExt = normalizeExtension(file?.name || '');
+// Support both Uppy's default payload { filename } and custom payload { file: { name } }
+  const incomingFilename = req.body.filename || req.body.file?.name || '';
+  const fileHash = req.body.fileHash || '';
+
+  const safeExt = normalizeExtension(incomingFilename);
+
   if (!safeExt) {
-    return res.status(400).json({ message: 'Unsupported file type.' });
+    return res.status(400).json({ message: 'Unsupported file type or missing filename.' });
   }
+
   const safeContentType = ALLOWED_EXT_TO_MIME[safeExt];
   const randomFilename = generateRandomString() + safeExt;
 
@@ -270,6 +275,13 @@ export async function signPart(req: Request, res: Response) {
   const { key, uploadId } = req.body;
   const partNumber = parseInt(req.body.partNumber);
 
+  // Prevent crashes by denying premature requests from the client
+  if (!key || !uploadId || isNaN(partNumber)) {
+    return res.status(400).json({
+      message: 'Missing key, uploadId, or partNumber. Initialize upload first.'
+    });
+  }
+  
   console.log('DEBUG signPart - key:', key);
   console.log('DEBUG signPart - uploadId:', uploadId);
   console.log('DEBUG signPart - partNumber:', partNumber);
