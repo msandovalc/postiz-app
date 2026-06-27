@@ -125,7 +125,7 @@ export async function createMultipartUpload(req: Request, res: Response) {
       Key: `${randomFilename}`,
       ContentType: safeContentType,
       Metadata: {
-        'x-amz-meta-file-hash': fileHash,
+        'file-hash': fileHash,
       },
     };
 
