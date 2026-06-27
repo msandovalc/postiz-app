@@ -115,6 +115,10 @@ export async function createMultipartUpload(req: Request, res: Response) {
   const safeContentType = ALLOWED_EXT_TO_MIME[safeExt];
   const randomFilename = generateRandomString() + safeExt;
 
+  console.log('DEBUG safeExt:', safeExt);
+  console.log('DEBUG randomFilename:', randomFilename);
+  console.log('DEBUG file recibido:', file);
+  
   try {
     const params = {
       Bucket: CLOUDFLARE_BUCKETNAME,
