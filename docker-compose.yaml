@@ -3,90 +3,16 @@ services:
   # POSTIZ: MAIN APPLICATION CONTENT CORE
   # ===========================================================================
   postiz:
-    image: ghcr.io/gitroomhq/postiz-app:v2.21.7
+    #image: ghcr.io/gitroomhq/postiz-app:v2.21.7
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
     container_name: postiz
     restart: always
+    env_file:
+      - .env
     environment:
       NODE_ENV: 'production'
-
-      # === URLs & Routing (Point to your domain, Caddy handles HTTPS)
-      PORT: '3001'
-      MAIN_URL: 'https://social.evo-omni-engine.duckdns.org'
-      FRONTEND_URL: 'https://social.evo-omni-engine.duckdns.org'
-      NEXT_PUBLIC_BACKEND_URL: 'https://social.evo-omni-engine.duckdns.org/api'
-      BACKEND_INTERNAL_URL: 'http://postiz:3001'
-
-      # === Security
-      JWT_SECRET: 'JdiI0LOEM981nyHVUfPl_SECRET_KEY_FOR_POSTIZ'
-      NEXTAUTH_SECRET: 'JdiI0LOEM981nyHVUfPl_SECRET_KEY_FOR_POSTIZ'
-
-      # === Infrastructure Connections (Postiz uses global DB and Redis)
-      DATABASE_URL: 'postgresql://postiz_admin:JdiI0LOEM981nyHVUfPl@global_postgres:5432/postiz_db'
-      REDIS_URL: 'redis://global_redis:6379'
-      TEMPORAL_ADDRESS: 'temporal:7233'
-      NEXTAUTH_URL: 'https://social.evo-omni-engine.duckdns.org'
-      #NEXTAUTH_COOKIE_NAME: 'auth'
-      #NEXTAUTH_COOKIE_DOMAIN: 'social.evo-omni-engine.duckdns.org'
-      COOKIE_DOMAIN: ''
-
-      # === App Flags
-      IS_GENERAL: 'true'
-      DISABLE_REGISTRATION: 'false' # Protects instance from external registrations
-
-      # === Storage Settings
-      STORAGE_PROVIDER: 'local'
-      UPLOAD_DIRECTORY: '/uploads'
-      NEXT_PUBLIC_UPLOAD_DIRECTORY: '/uploads'
-
-      # === Social Media API Settings (Blank, handled via frontend OAuth)
-      X_URL: ''
-      X_API_KEY: ''
-      X_API_SECRET: ''
-      LINKEDIN_CLIENT_ID: ''
-      LINKEDIN_CLIENT_SECRET: ''
-      REDDIT_CLIENT_ID: ''
-      REDDIT_CLIENT_SECRET: ''
-      GITHUB_CLIENT_ID: ''
-      GITHUB_CLIENT_SECRET: ''
-      BEEHIIVE_API_KEY: ''
-      BEEHIIVE_PUBLICATION_ID: ''
-      THREADS_APP_ID: ''
-      THREADS_APP_SECRET: ''
-      FACEBOOK_APP_ID: ''
-      FACEBOOK_APP_SECRET: ''
-      YOUTUBE_CLIENT_ID: ''
-      YOUTUBE_CLIENT_SECRET: ''
-      TIKTOK_CLIENT_ID: ''
-      TIKTOK_CLIENT_SECRET: ''
-      PINTEREST_CLIENT_ID: ''
-      PINTEREST_CLIENT_SECRET: ''
-      DRIBBBLE_CLIENT_ID: ''
-      DRIBBBLE_CLIENT_SECRET: ''
-      DISCORD_CLIENT_ID: ''
-      DISCORD_CLIENT_SECRET: ''
-      DISCORD_BOT_TOKEN_ID: ''
-      SLACK_ID: ''
-      SLACK_SECRET: ''
-      SLACK_SIGNING_SECRET: ''
-      MASTODON_URL: 'https://mastodon.social'
-      MASTODON_CLIENT_ID: ''
-      MASTODON_CLIENT_SECRET: ''
-
-      # === Misc Settings
-      OPENAI_API_KEY: ''
-      NEXT_PUBLIC_DISCORD_SUPPORT: ''
-      NEXT_PUBLIC_POLOTNO: ''
-      API_LIMIT: 100 # High limits for high-volume automated pipeline bursts
-
-      # === Payment / Stripe Settings
-      FEE_AMOUNT: 0.05
-      STRIPE_PUBLISHABLE_KEY: ''
-      STRIPE_SECRET_KEY: ''
-      STRIPE_SIGNING_KEY: ''
-      STRIPE_SIGNING_KEY_CONNECT: ''
-
-      # === Developer Settings
-      NX_ADD_PLUGINS: 'false'
     volumes:
       - postiz-config:/config/
       - postiz-uploads:/uploads/
