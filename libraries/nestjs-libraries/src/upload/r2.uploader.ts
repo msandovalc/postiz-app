@@ -118,7 +118,7 @@ export async function createMultipartUpload(req: Request, res: Response) {
   console.log('DEBUG safeExt:', safeExt);
   console.log('DEBUG randomFilename:', randomFilename);
   console.log('DEBUG file recibido:', file);
-  
+
   try {
     const params = {
       Bucket: CLOUDFLARE_BUCKETNAME,
@@ -269,6 +269,10 @@ export async function abortMultipartUpload(req: Request, res: Response) {
 export async function signPart(req: Request, res: Response) {
   const { key, uploadId } = req.body;
   const partNumber = parseInt(req.body.partNumber);
+
+  console.log('DEBUG signPart - key:', key);
+  console.log('DEBUG signPart - uploadId:', uploadId);
+  console.log('DEBUG signPart - partNumber:', partNumber);
 
   const params = {
     Bucket: CLOUDFLARE_BUCKETNAME,
