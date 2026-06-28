@@ -4,7 +4,7 @@
   "description": "",
   "scripts": {
       "//": "Use ts-node-dev for faster, cleaner restarts in Docker volumes",
-      "dev": "ts-node-dev --respawn --transpile-only --exit-child ./apps/orchestrator/src/main.ts",
+      "dev": "lsof -t -i:3002 | xargs kill -9 2>/dev/null || true; dotenv -e ../../.env -- nest start --watch --entryFile=./apps/orchestrator/src/main",
       "build": "cross-env NODE_ENV=production nest build",
       "start": "dotenv -e ../../.env -- node --experimental-require-module ./dist/apps/orchestrator/src/main.js",
       "pm2": "pm2 start pnpm --name orchestrator -- start"
