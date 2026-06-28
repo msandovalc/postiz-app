@@ -212,59 +212,59 @@ export async function listParts(req: Request, res: Response) {
   }
 }
 
-export async function completeMultipartUpload(req: Request, res: Response) {
-  const { key, uploadId, parts } = req.body;
+export async function createMultipartUpload(req: Request, res: Response) {
+  // Support both Uppy's default payload { filename } and custom payload { file: { name } }
+  const incomingFilename = req.body.filename || req.body.file?.name || '';
+  const fileHash = req.body.fileHash || '';
+
+  const safeExt = normalizeExtension(incomingFilename);
+
+  if (!safeExt) {
+    console.error('Validation Error: Missing or unsupported file type for:', incomingFilename);
+    return res.status(400).json({ message: 'Unsupported file type or missing filename.' });
+  }
+
+  const safeContentType = ALLOWED_EXT_TO_MIME[safeExt];
+  const randomFilename = generateRandomString() + safeExt;
+
+  console.log(`[Multipart Create] Ext: ${safeExt} | Key: ${randomFilename}`);
 
   try {
-    const command = new CompleteMultipartUploadCommand({
+    const params: any = {
       Bucket: CLOUDFLARE_BUCKETNAME,
-      Key: key,
-      UploadId: uploadId,
-      MultipartUpload: { Parts: parts },
-    });
+      Key: `${randomFilename}`,
+      ContentType: safeContentType,
+    };
+
+    // FIX: Cloudflare rejects empty metadata headers. Only attach if a valid hash is provided.
+    if (fileHash && fileHash.trim() !== '') {
+      params.Metadata = {
+        'file-hash': fileHash,
+      };
+    }
+
+    const command = new CreateMultipartUploadCommand(params);
     const response = await R2.send(command);
 
-    const safeExt = normalizeExtension(key || '');
-    if (!safeExt) {
-      await R2.send(
-        new DeleteObjectCommand({ Bucket: CLOUDFLARE_BUCKETNAME, Key: key })
-      );
-      return res.status(400).json({ message: 'Unsupported file type.' });
-    }
-    const expectedMime = ALLOWED_EXT_TO_MIME[safeExt];
+    return res.status(200).json({
+      uploadId: response.UploadId,
+      key: response.Key,
+    });
+  } catch (err: any) {
+    // Aggressive error logging to expose the hidden 500 issue with Cloudflare R2
+    console.error('\n❌❌❌ [CRITICAL] CLOUDFLARE R2 REJECTED THE REQUEST ❌❌❌');
+    console.error('👉 AWS Error Name:', err.name || 'Unknown');
+    console.error('👉 AWS Error Message:', err.message || 'No message available');
+    console.error('👉 HTTP Status Code:', err.$metadata?.httpStatusCode || 'N/A');
+    console.error('👉 Request ID:', err.$metadata?.requestId || 'N/A');
 
-    const head = await R2.send(
-      new GetObjectCommand({
-        Bucket: CLOUDFLARE_BUCKETNAME,
-        Key: key,
-        Range: 'bytes=0-4100',
-      })
-    );
-    const chunks: Buffer[] = [];
-    // @ts-ignore
-    for await (const chunk of head.Body as AsyncIterable<Buffer>) {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-    }
-    const prefix = Buffer.concat(chunks);
-    const detected = await fromBuffer(prefix);
+    console.error('\n🔍 Credentials Check (Ensure there are no trailing spaces):');
+    console.error(`Bucket: [${CLOUDFLARE_BUCKETNAME}]`);
+    console.error(`AccessKey: [${CLOUDFLARE_ACCESS_KEY}]`);
+    console.error(`Endpoint: [https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com]`);
+    console.error('❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌❌\n');
 
-    if (!detected || detected.mime !== expectedMime) {
-      await R2.send(
-        new DeleteObjectCommand({ Bucket: CLOUDFLARE_BUCKETNAME, Key: key })
-      );
-      return res
-        .status(400)
-        .json({ message: 'File contents do not match declared type.' });
-    }
-
-    response.Location =
-      process.env.CLOUDFLARE_BUCKET_URL +
-      '/' +
-      response?.Location?.split('/').at(-1);
-    return response;
-  } catch (err) {
-    console.log('Error', err);
-    return res.status(500).json(err);
+    return res.status(500).json({ error: 'Failed to initialize multipart upload.', details: err.name });
   }
 }
 
@@ -275,7 +275,7 @@ export async function abortMultipartUpload(req: Request, res: Response) {
     console.log('💋 MAITE: Ignoring abort request because Key or UploadId is missing.');
     return res.status(400).json({ message: 'Nothing to abort.' });
   }
-  
+
   try {
     const params = {
       Bucket: CLOUDFLARE_BUCKETNAME,
