@@ -271,6 +271,11 @@ export async function completeMultipartUpload(req: Request, res: Response) {
 export async function abortMultipartUpload(req: Request, res: Response) {
   const { key, uploadId } = req.body;
 
+  if (!key || !uploadId) {
+    console.log('💋 MAITE: Ignoring abort request because Key or UploadId is missing.');
+    return res.status(400).json({ message: 'Nothing to abort.' });
+  }
+  
   try {
     const params = {
       Bucket: CLOUDFLARE_BUCKETNAME,

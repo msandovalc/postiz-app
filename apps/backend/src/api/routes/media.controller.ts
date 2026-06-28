@@ -160,12 +160,12 @@ export class MediaController {
   ) {
     const upload = await handleR2Upload(endpoint, req, res);
     if (endpoint !== 'complete-multipart-upload') {
-      return upload;
+      return;
     }
 
     // @ts-ignore
     const name = upload.Location.split('/').pop();
-    const originalName = req.body?.file?.name;
+    const originalName = req.body?.file?.name || req.body?.filename;
 
     const saveFile = await this._mediaService.saveFile(
       org.id,
