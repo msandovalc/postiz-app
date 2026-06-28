@@ -13,10 +13,20 @@ dns.setDefaultResultOrder('ipv4first');
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableShutdownHooks();
-  const port = process.env.ORCHESTRATOR_PORT || 3002;
-  await app.listen(port);
-  console.log(`Orchestrator health check listening on port ${port}`);
-}
 
+  const port = process.env.ORCHESTRATOR_PORT || 3002;
+
+  try {
+    await app.listen(port);
+    console.log(`🚀 Orchestrator is running on port ${port}`);
+  } catch (err: any) {
+    if (err.code === 'EADDRINUSE') {
+      console.warn(`⚠️ Port ${port} is already in use. Assuming hot-reload in progress...`);
+    } else {
+      console.error('❌ Failed to start server:', err);
+      process.exit(1);
+    }
+  }
+}
 
 bootstrap();
