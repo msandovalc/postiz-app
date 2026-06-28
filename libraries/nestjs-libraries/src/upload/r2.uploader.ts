@@ -293,32 +293,52 @@ export async function abortMultipartUpload(req: Request, res: Response) {
 }
 
 export async function signPart(req: Request, res: Response) {
+  // 1. Destructure with extra validation to ensure we don't crash on bad payloads
   const { key, uploadId } = req.body;
-  const partNumber = parseInt(req.body.partNumber);
+  const partNumber = parseInt(req.body.partNumber, 10);
 
-  // Prevent crashes by denying premature requests from the client
-  if (!key || !uploadId || isNaN(partNumber)) {
+  // 2. Strict validation: Reject immediately if the request is malformed
+  if (!key || typeof key !== 'string' || !uploadId || typeof uploadId !== 'string' || isNaN(partNumber)) {
+    console.error('❌ MAITE ERROR: signPart called with invalid parameters', { key, uploadId, partNumber });
     return res.status(400).json({
-      message: 'Missing key, uploadId, or partNumber. Initialize upload first.'
+      message: 'Invalid or missing key, uploadId, or partNumber.'
     });
   }
 
-  console.log('DEBUG signPart - key:', key);
-  console.log('DEBUG signPart - uploadId:', uploadId);
-  console.log('DEBUG signPart - partNumber:', partNumber);
+  // 3. Tactical logs: Seeing what we are dealing with before the sign process
+  console.log(`🔍 MAITE DEBUG signPart: Requesting signed URL | Part: ${partNumber} | Key: ${key} | UploadId: ${uploadId.substring(0, 15)}...`);
 
-  const params = {
-    Bucket: CLOUDFLARE_BUCKETNAME,
-    Key: key,
-    PartNumber: partNumber,
-    UploadId: uploadId,
-    Expires: 3600,
-  };
+  try {
+    const params = {
+      Bucket: CLOUDFLARE_BUCKETNAME,
+      Key: key,
+      PartNumber: partNumber,
+      UploadId: uploadId,
+    };
 
-  const command = new UploadPartCommand({ ...params });
-  const url = await getSignedUrl(R2, command, { expiresIn: 3600 });
+    const command = new UploadPartCommand(params);
 
-  return res.status(200).json({
-    url: url,
-  });
+    // 4. Generate the presigned URL with the S3 client
+    const url = await getSignedUrl(R2, command, { expiresIn: 3600 });
+
+    // 5. Success log: Confirm the signature was generated
+    console.log(`✅ MAITE SUCCESS: Signed URL generated successfully for part ${partNumber}`);
+
+    return res.status(200).json({
+      url: url,
+    });
+  } catch (err: any) {
+    // 6. Deep error logging: Capture exactly why R2/AWS SDK refused to sign this part
+    console.error('❌ MAITE CRITICAL: Failed to sign upload part:', {
+      message: err.message,
+      name: err.name,
+      partNumber,
+      key
+    });
+
+    return res.status(500).json({
+      message: 'Failed to sign upload part',
+      error: err.message
+    });
+  }
 }
