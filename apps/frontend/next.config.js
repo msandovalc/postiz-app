@@ -3,6 +3,10 @@ import { withSentryConfig } from '@sentry/nextjs';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+
+  /* MaSa */
+  allowedDevOrigins: ['social.evo-omni-engine.duckdns.org'],
+
   experimental: {
     proxyTimeout: 90_000,
   },

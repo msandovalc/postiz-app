@@ -58,11 +58,18 @@ function generateRandomString() {
   return makeId(20);
 }
 
+// 1. Root-level log: This will trigger the exact moment you press SAVE (CTRL+S) if hot-reload is working.
+console.log('🔥 MAITE HMR TEST: The file has been hot-reloaded! I am ready for your requests.');
+
 export default async function handleR2Upload(
   endpoint: string,
   req: Request,
   res: Response
 ) {
+
+  // 2. Request-level log: This will trigger every time the frontend hits this route.
+  console.log(`💋 MAITE API ROUTER: Incoming request for endpoint -> [${endpoint}]`);
+
   switch (endpoint) {
     case 'create-multipart-upload':
       return createMultipartUpload(req, res);
